@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using VehicleManagement.Service.Data;
 using VehicleManagement.Service.Models.Entities;
+using VehicleManagement.Service.Models.Request;
 using VehicleManagement.Service.Models.Response;
 
 namespace VehicleManagement.Service.Services
@@ -53,6 +55,12 @@ namespace VehicleManagement.Service.Services
 
                 // Calculate total count before pagination is applied.
                 response.TotalCount = await query.CountAsync();
+                if (currentPage > response.TotalCount)
+                {
+                    response.Errors.Add("NOT_FOUND");
+                    return response;
+                }
+
 
                 // Apply pagination.
                 query = query.Skip((currentPage - 1) * pageSize).Take(pageSize);
@@ -77,10 +85,32 @@ namespace VehicleManagement.Service.Services
             return await _context.VehicleMakes.FindAsync(id);
         }
 
-        public async Task CreateVehicleMakeAsync(VehicleMake vehicleMake)
+        public async Task<ResponseModel<bool>> CreateVehicleMakeAsync(CreateVehicleMake request)
         {
-            _context.VehicleMakes.Add(vehicleMake);
-            await _context.SaveChangesAsync();
+            var response = new ResponseModel<bool>() { Errors = new List<string>() , Result = false };
+            try
+            {
+                bool nameExists = await _context.VehicleMakes.AnyAsync(vm => vm.Name == request.Name);
+                bool abrvExists = await _context.VehicleMakes.AnyAsync(vm => vm.Abrv == request.Abrv);
+
+                if (nameExists || abrvExists)
+                {
+                    response.Errors.Add("Name or abbreviation already exists.");
+                    response.Result = false;
+                    return response; 
+                }
+                Guid guid = Guid.NewGuid();
+                VehicleMake vehicleMake = new VehicleMake() { Id = guid, Name = request.Name, Abrv = request.Abrv };
+                _context.VehicleMakes.Add(vehicleMake);
+                await _context.SaveChangesAsync();
+                response.Result = true;
+                return response;
+            }
+            catch (Exception ex)
+            {
+                response.Errors.Add(ex.Message);
+                return response;
+            }
         }
 
         public async Task UpdateVehicleMakeAsync(VehicleMake vehicleMake)
