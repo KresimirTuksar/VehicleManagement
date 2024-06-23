@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Hosting;
-using VehicleManagement.MVC;
 using VehicleManagement.Service.Data;
 using VehicleManagement.Service.Services;
 
