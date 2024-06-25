@@ -1,4 +1,5 @@
-﻿using Azure.Core;
+﻿using AutoMapper;
+using Azure.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
@@ -12,10 +13,12 @@ namespace VehicleManagement.Service.Services
     public class VehicleService : IVehicleService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMapper _mapper;
 
-        public VehicleService(ApplicationDbContext context)
+        public VehicleService(ApplicationDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         public async Task<PaginatedResponse<VehicleMakeResponse>> GetVehicleMakesAsync(string name, string abrv, string orderBy = "Name", string sortOrder = "ASC", int pageSize = 10, int currentPage = 1)
@@ -69,16 +72,8 @@ namespace VehicleManagement.Service.Services
                 query = query.Skip((currentPage - 1) * pageSize).Take(pageSize);
 
                 var results = await query.ToListAsync();
-                foreach (var result in results)
-                {
-                    response.Results.Add(new VehicleMakeResponse
-                    {
-                        
-                        Name = result.Name,
-                        Abrv = result.Abrv
-                    });
-                }
 
+                response.Results = _mapper.Map<List<VehicleMakeResponse>>(results);
                 // Calculate the total pages.
                 response.TotalPages = (int)Math.Ceiling((double)response.TotalCount / pageSize);
             }
@@ -101,11 +96,8 @@ namespace VehicleManagement.Service.Services
                 response.Errors.Add("NOT_FOUND");
                 return response;
             }
-            response.Result = new VehicleMakeResponse()
-            {
-                Abrv = result.Abrv,
-                Name = result.Name
-            };
+
+            response.Result = _mapper.Map<VehicleMakeResponse>(result);
             return response;
         }
 
@@ -222,6 +214,7 @@ namespace VehicleManagement.Service.Services
             }
         }
 
+
         public async Task<PaginatedResponse<VehicleModelResponse>> GetVehicleModelsAsync(string name, string abrv, string orderBy = "Name", string sortOrder = "ASC", int pageSize = 10, int currentPage = 1)
         {
             var response = new PaginatedResponse<VehicleModelResponse>
@@ -266,16 +259,8 @@ namespace VehicleManagement.Service.Services
                 query = query.Skip((currentPage - 1) * pageSize).Take(pageSize);
 
                 var results = await query.ToListAsync();
-                foreach (var result in results)
-                {
-                    response.Results.Add(new VehicleModelResponse
-                    {
 
-                        Name = result.Name,
-                        Abrv = result.Abrv
-                    });
-                }
-
+                response.Results = _mapper.Map<List<VehicleModelResponse>>(results);
                 // Calculate the total pages.
                 response.TotalPages = (int)Math.Ceiling((double)response.TotalCount / pageSize);
             }
@@ -297,11 +282,7 @@ namespace VehicleManagement.Service.Services
                 response.Errors.Add("NOT_FOUND");
                 return response;
             }
-            response.Result = new VehicleModelResponse()
-            {
-                Abrv = result.Abrv,
-                Name = result.Name
-            };
+            response.Result = _mapper.Map<VehicleModelResponse>(result);   
             return response;
         }
 

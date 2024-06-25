@@ -1,3 +1,4 @@
+using VehicleManagement.MVC;
 using VehicleManagement.Service.Data;
 using VehicleManagement.Service.Services;
 
@@ -7,8 +8,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddControllersWithViews();
 
+
 builder.Services.AddDbContext<ApplicationDbContext>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
+
+builder.Services.AddAutoMapper(typeof(Program), typeof(AutoMapperProfile));
 
 var app = builder.Build();
 
