@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 using VehicleManagement.Service.Data;
 using VehicleManagement.Service.Models.Entities;
 using VehicleManagement.Service.Models.Request;
@@ -94,7 +96,7 @@ namespace VehicleManagement.Service.Services
             var response = new ResponseModel<VehicleMakeResponse>() { Errors = new List<string>(), Result = null };
             var result = await _context.VehicleMakes.FindAsync(id);
 
-            if (response.Result == null)
+            if (result == null)
             {
                 response.Errors.Add("NOT_FOUND");
                 return response;
@@ -220,14 +222,14 @@ namespace VehicleManagement.Service.Services
             }
         }
 
-        public async Task<PaginatedResponse<VehicleModel>> GetVehicleModelsAsync(string name, string abrv, string orderBy = "Name", string sortOrder = "ASC", int pageSize = 10, int currentPage = 1)
+        public async Task<PaginatedResponse<VehicleModelResponse>> GetVehicleModelsAsync(string name, string abrv, string orderBy = "Name", string sortOrder = "ASC", int pageSize = 10, int currentPage = 1)
         {
-            var response = new PaginatedResponse<VehicleModel>
+            var response = new PaginatedResponse<VehicleModelResponse>
             {
                 CurrentPage = currentPage,
                 PageSize = pageSize,
                 Errors = new List<string>(),
-                Results = new List<VehicleModel>()
+                Results = new List<VehicleModelResponse>()
             };
 
             try
@@ -263,8 +265,16 @@ namespace VehicleManagement.Service.Services
                 // Apply pagination.
                 query = query.Skip((currentPage - 1) * pageSize).Take(pageSize);
 
-                // Execute the query and set the Results.
-                response.Results = await query.ToListAsync();
+                var results = await query.ToListAsync();
+                foreach (var result in results)
+                {
+                    response.Results.Add(new VehicleModelResponse
+                    {
+
+                        Name = result.Name,
+                        Abrv = result.Abrv
+                    });
+                }
 
                 // Calculate the total pages.
                 response.TotalPages = (int)Math.Ceiling((double)response.TotalCount / pageSize);
@@ -277,27 +287,143 @@ namespace VehicleManagement.Service.Services
 
             return response;
         }
-        public async Task<VehicleModel> GetVehicleModelByIdAsync(Guid id)
+        public async Task<ResponseModel<VehicleModelResponse>> GetVehicleModelByIdAsync(Guid id)
         {
-            return await _context.VehicleModels.FindAsync(id);
+            var response = new ResponseModel<VehicleModelResponse>() { Errors = new List<string>(), Result = null };
+            var result = await _context.VehicleModels.FindAsync(id);
+
+            if (result == null)
+            {
+                response.Errors.Add("NOT_FOUND");
+                return response;
+            }
+            response.Result = new VehicleModelResponse()
+            {
+                Abrv = result.Abrv,
+                Name = result.Name
+            };
+            return response;
         }
 
-        public async Task CreateVehicleModelAsync(VehicleModel vehicleModel)
+        public async Task<ResponseModel<bool>> CreateVehicleModelAsync(CreateVehicleModel request)
         {
-            _context.VehicleModels.Add(vehicleModel);
-            await _context.SaveChangesAsync();
+            var response = new ResponseModel<bool>() { Errors = new List<string>(), Result = false };
+            var result = await _context.VehicleMakes.FindAsync(request.VehicleMakeId);
+
+            if (result == null)
+            {
+                response.Errors.Add("NOT_FOUND");
+                return response;
+            }
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Abrv))
+                {
+                    response.Errors.Add("EMPTY_FIELDS");
+                    return response;
+                }
+
+                bool nameExists = await _context.VehicleModels.AnyAsync(vm => vm.Name == request.Name);
+                bool abrvExists = await _context.VehicleModels.AnyAsync(vm => vm.Abrv == request.Abrv);
+
+                if (nameExists || abrvExists)
+                {
+                    response.Errors.Add("NAME_OR_ABBREVIATION_ALREADY_EXISTS");
+                    response.Result = false;
+                    return response;
+                }
+                Guid guid = Guid.NewGuid();
+                VehicleModel vehiclemodel = new VehicleModel() { Id = guid, Name = request.Name, Abrv = request.Abrv, MakeId = request.VehicleMakeId };
+                _context.VehicleModels.Add(vehiclemodel);
+                await _context.SaveChangesAsync();
+                response.Result = true;
+                return response;
+            }
+            catch (Exception ex)
+            {
+                response.Errors.Add(ex.Message);
+                return response;
+            }
         }
 
-        public async Task UpdateVehicleModelAsync(VehicleModel vehicleModel)
+        public async Task<ResponseModel<bool>> UpdateVehicleModelAsync(EditVehicleModel request)
         {
-            _context.VehicleModels.Update(vehicleModel);
-            await _context.SaveChangesAsync();
+            var response = new ResponseModel<bool>() { Errors = new List<string>(), Result = false };
+
+            try
+            {
+                // Check for empty fields
+                if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Abrv))
+                {
+                    response.Errors.Add("EMPTY_FIELDS");
+                    return response;
+                }
+
+                // Check for existing vehicle make with the same name or abrv
+                bool nameExists = await _context.VehicleModels.AnyAsync(vm => vm.Name == request.Name && vm.Id == request.Id);
+                bool abrvExists = await _context.VehicleModels.AnyAsync(vm => vm.Abrv == request.Abrv && vm.Id == request.Id);
+                if (nameExists)
+                {
+                    response.Errors.Add("NAME_EXISTS");
+                }
+                if (abrvExists)
+                {
+                    response.Errors.Add("ABRV_EXISTS");
+                }
+                if (nameExists || abrvExists)
+                {
+                    return response;
+                }
+
+                // Find the existing vehicle make
+                var vehiclemodel = await _context.VehicleModels.FindAsync(request.Id);
+                if (vehiclemodel == null)
+                {
+                    response.Errors.Add("NOT_FOUND");
+                    return response;
+                }
+
+                // Update the vehicle make
+                vehiclemodel.Name = request.Name;
+                vehiclemodel.Abrv = request.Abrv;
+                _context.VehicleModels.Update(vehiclemodel);
+                await _context.SaveChangesAsync();
+
+                response.Result = true;
+            }
+            catch (Exception ex)
+            {
+                response.Errors.Add(ex.Message);
+
+            }
+
+            return response;
         }
 
-        public async Task DeleteVehicleModelAsync(VehicleModel vehicleModel)
+        public async Task<ResponseModel<bool>> DeleteVehicleModelAsync(Guid? id)
         {
-            _context.VehicleModels.Remove(vehicleModel);
-            await _context.SaveChangesAsync();
+            var response = new ResponseModel<bool>() { Errors = new List<string>(), Result = false };
+
+            try
+            {
+                var existingVehicleModel = await _context.VehicleModels.FindAsync(id);
+                if (existingVehicleModel == null)
+                {
+                    response.Errors.Add("NOT_FOUND");
+                    return response;
+                }
+
+                _context.VehicleModels.Remove(existingVehicleModel);
+                await _context.SaveChangesAsync();
+
+                response.Result = true;
+                return response;
+            }
+            catch (Exception ex)
+            {
+                response.Errors.Add(ex.Message);
+                return response;
+            }
         }
     }
 }

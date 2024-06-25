@@ -17,10 +17,10 @@ namespace VehicleManagement.Service.Services
         public Task<ResponseModel<bool>> UpdateVehicleMakeAsync(EditVehicleMake vehicleMake);
         public Task<ResponseModel<bool>> DeleteVehicleMakeAsync(Guid? id);
          
-        public Task<PaginatedResponse<VehicleModel>> GetVehicleModelsAsync(string name, string abrv, string orderBy, string sortOrder, int pageSize, int currentPage);
-        public Task<VehicleModel> GetVehicleModelByIdAsync(Guid id);
-        public Task CreateVehicleModelAsync(VehicleModel vehicleModel);
-        public Task UpdateVehicleModelAsync(VehicleModel vehicleModel);
-        public Task DeleteVehicleModelAsync(VehicleModel vehicleModel);
+        public Task<PaginatedResponse<VehicleModelResponse>> GetVehicleModelsAsync(string name, string abrv, string orderBy, string sortOrder, int pageSize, int currentPage);
+        public Task<ResponseModel<VehicleModelResponse>> GetVehicleModelByIdAsync(Guid id);
+        public Task<ResponseModel<bool>> CreateVehicleModelAsync(CreateVehicleModel request);
+        public Task<ResponseModel<bool>> UpdateVehicleModelAsync(EditVehicleModel request);
+        public Task<ResponseModel<bool>> DeleteVehicleModelAsync(Guid? id);
     }
 }
