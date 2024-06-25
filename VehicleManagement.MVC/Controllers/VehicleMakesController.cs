@@ -3,12 +3,10 @@ using System.Collections.Generic;
 using System.Drawing.Printing;
 using System.Linq;
 using System.Threading.Tasks;
-using Azure;
+using Azure.Core;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-using VehicleManagement.MVC.Models;
 using VehicleManagement.Service.Data;
 using VehicleManagement.Service.Models.Entities;
 using VehicleManagement.Service.Models.Request;
@@ -17,164 +15,117 @@ using VehicleManagement.Service.Services;
 
 namespace VehicleManagement.MVC.Controllers
 {
-    public class VehicleMakesController : Controller
+    [Route("api/[controller]")]
+    [ApiController]
+    public class VehicleMakesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
         private readonly IVehicleService _service;
+
 
         public VehicleMakesController(ApplicationDbContext context, IVehicleService service)
         {
             _context = context;
             _service = service;
+
         }
 
-        // GET: VehicleMakes
-        public async Task<IActionResult> Index(int currentPage = 1, int pageSize = 5)
+        // GET: api/VehicleMakes
+        [HttpGet]
+        public async Task<ActionResult<PaginatedResponse<VehicleMakeResponse>>> GetVehicleMakes(string name = "", string abrv = "", string sortBy = "Name", string sortOrder = "ASC", int pageSize = 5, int currentPage = 1)
         {
-            var response = await _service.GetVehicleMakesAsync("", "", "Name","ASC", pageSize, currentPage);
+            var response = await _service.GetVehicleMakesAsync(name, abrv, sortBy, sortOrder, pageSize, currentPage);
+            
             if (response.Errors.Contains("NOT_FOUND"))
             {
-                return View("NotFound");
+                return NotFound();
             }
-            return View(response);
+            return Ok(response);
         }
 
-        // GET: VehicleMakes/Details/5
-        public async Task<IActionResult> Details(Guid? id)
+        // GET: api/VehicleMakes/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ResponseModel<VehicleMakeResponse>>> GetVehicleMake(Guid id)
         {
-            if (id == null)
+            var response = await _service.GetVehicleMakeByIdAsync(id);
+
+            if (response.Errors.Contains("NOT_FOUND"))
             {
-                return View("NotFound");
+                return NotFound();
             }
 
-            var vehicleMake = await _context.VehicleMakes
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (vehicleMake == null)
+            return Ok(response);
+        }
+
+        [HttpGet("vehicleMake/{id}")]
+        public async Task<IActionResult> GetVehicleMakeByIdWithModels(Guid id)
+        {
+            var response = await _service.GetVehicleMakeByIdWithModelsAsync(id);
+
+            if (response.Errors.Contains("NOT_FOUND"))
             {
-                return View("NotFound");
+                return NotFound();
             }
 
-            return View(vehicleMake);
+            return Ok(response);
         }
 
-        // GET: VehicleMakes/Create
-        public IActionResult Create()
+        // PUT: api/VehicleMakes/5
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<ActionResult<ResponseModel<bool>>> PutVehicleMake(Guid id, EditVehicleMake request)
         {
-            CreateVehicleMakeViewModel viewModel = new CreateVehicleMakeViewModel();
-
-            return View(viewModel);
-        }
-
-        // POST: VehicleMakes/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Name,Abrv")] CreateVehicleMake request)
-        {
-            CreateVehicleMakeViewModel viewModel = new CreateVehicleMakeViewModel();
+            request.Id = id;
             if (ModelState.IsValid)
             {
+
+                var response = await _service.UpdateVehicleMakeAsync(request);
+
+                if (response.Success == false)
+                {
+                    return BadRequest(response.Errors.FirstOrDefault());
+                }
+                return NoContent();
+            }
+            return BadRequest();
+        }
+
+        // POST: api/VehicleMakes
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPost]
+        public async Task<ActionResult<ResponseModel<VehicleMake>>> PostVehicleMake([Bind("Name,Abrv")] CreateVehicleMake request)
+        {
+            if (ModelState.IsValid)
+            {
+                
                 var response = await _service.CreateVehicleMakeAsync(request);
 
-                if (response.Result == false)
+                if (response.Success == false)
                 {
-                    viewModel.Response = response;
-                    return View(viewModel);
+                    return BadRequest(response.Errors.FirstOrDefault());
                 }
-                return RedirectToAction(nameof(Index));
+                return CreatedAtAction("GetVehicleMake", response);
             }
-            viewModel.Request = request;
-            return View(viewModel);
+            return BadRequest();
         }
 
-        // GET: VehicleMakes/Edit/5
-        public async Task<IActionResult> Edit(Guid? id)
+        // DELETE: api/VehicleMakes/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteVehicleMake(Guid? id)
         {
-            if (id == null)
+            if (id != null)
             {
-                return NotFound();
-            }
 
-            var vehicleMake = await _context.VehicleMakes.FindAsync(id);
-            if (vehicleMake == null)
-            {
-                return NotFound();
-            }
-            return View(vehicleMake);
-        }
+                var response = await _service.DeleteVehicleMakeAsync(id);
 
-        // POST: VehicleMakes/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(Guid id, [Bind("Id,Name,Abrv")] VehicleMake vehicleMake)
-        {
-            if (id != vehicleMake.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
+                if (response.Success == false)
                 {
-                    _context.Update(vehicleMake);
-                    await _context.SaveChangesAsync();
+                    return BadRequest(response.Errors.FirstOrDefault());
                 }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!VehicleMakeExists(vehicleMake.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                return NoContent();
             }
-            return View(vehicleMake);
+            return BadRequest();
         }
 
-        // GET: VehicleMakes/Delete/5
-        public async Task<IActionResult> Delete(Guid? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var vehicleMake = await _context.VehicleMakes
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (vehicleMake == null)
-            {
-                return NotFound();
-            }
-
-            return View(vehicleMake);
-        }
-
-        // POST: VehicleMakes/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(Guid id)
-        {
-            var vehicleMake = await _context.VehicleMakes.FindAsync(id);
-            if (vehicleMake != null)
-            {
-                _context.VehicleMakes.Remove(vehicleMake);
-            }
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
-
-        private bool VehicleMakeExists(Guid id)
-        {
-            return _context.VehicleMakes.Any(e => e.Id == id);
-        }
     }
 }
