@@ -12,6 +12,7 @@ namespace VehicleManagement.Service.Services
     public interface IVehicleService
     {
         public Task<PaginatedResponse<VehicleMakeResponse>> GetVehicleMakesAsync(string name, string abrv, string orderBy, string sortOrder, int pageSize, int currentPage);
+        public Task<ResponseModel<VehicleMakeWithModels>> GetVehicleMakeByIdWithModelsAsync(Guid? id);
         public Task<ResponseModel<VehicleMakeResponse>> GetVehicleMakeByIdAsync(Guid? id);
         public Task<ResponseModel<bool>> CreateVehicleMakeAsync(CreateVehicleMake request);
         public Task<ResponseModel<bool>> UpdateVehicleMakeAsync(EditVehicleMake vehicleMake);

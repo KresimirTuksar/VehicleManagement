@@ -1,5 +1,6 @@
 using VehicleManagement.MVC;
 using VehicleManagement.Service.Data;
+using VehicleManagement.Service.Models.Mappings;
 using VehicleManagement.Service.Services;
 
 var builder = WebApplication.CreateBuilder(args);

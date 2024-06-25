@@ -85,6 +85,27 @@ namespace VehicleManagement.Service.Services
 
             return response;
         }
+        public async Task<ResponseModel<VehicleMakeWithModels>> GetVehicleMakeByIdWithModelsAsync(Guid? id)
+        {
+            var response = new ResponseModel<VehicleMakeWithModels>() { Errors = new List<string>(), Result = null };
+            var make = await _context.VehicleMakes
+                .Include(vm => vm.Models)
+                .FirstOrDefaultAsync(vm => vm.Id == id);
+
+            if (make == null)
+            {
+                response.Errors.Add("NOT_FOUND");
+                return response;
+            }
+
+            response.Result = new VehicleMakeWithModels
+            {
+                Make = _mapper.Map<VehicleMakeResponse>(make),
+                Models = _mapper.Map<List<VehicleModelResponse>>(make.Models)
+            };
+
+            return response;
+        }
 
         public async Task<ResponseModel<VehicleMakeResponse>> GetVehicleMakeByIdAsync(Guid? id)
         {
@@ -282,7 +303,7 @@ namespace VehicleManagement.Service.Services
                 response.Errors.Add("NOT_FOUND");
                 return response;
             }
-            response.Result = _mapper.Map<VehicleModelResponse>(result);   
+            response.Result = _mapper.Map<VehicleModelResponse>(result);
             return response;
         }
 

@@ -57,6 +57,19 @@ namespace VehicleManagement.MVC.Controllers
             return Ok(response);
         }
 
+        [HttpGet("vehicleMake/{id}")]
+        public async Task<IActionResult> GetVehicleMakeByIdWithModels(Guid id)
+        {
+            var response = await _service.GetVehicleMakeByIdWithModelsAsync(id);
+
+            if (response.Errors.Contains("NOT_FOUND"))
+            {
+                return NotFound();
+            }
+
+            return Ok(response);
+        }
+
         // PUT: api/VehicleMakes1/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
